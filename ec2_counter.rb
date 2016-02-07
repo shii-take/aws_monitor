@@ -26,15 +26,17 @@ counter.map do |result, data|
 end.save('instance_count_per_type.csv')
 
 counter.map do |result, data|
+  tmp_data = data.dup
   types = []
   instances = result['Reservations'].collect { |ins| ins['Instances'][0] }
   instances.each { |instance| types << instance['InstanceType'] }
   types.each do |type|
-    Aws::Counter::PHASE_LIST.each { |phase| data["[#{phase}]#{type}"] = 0 }
+    Aws::Counter::PHASE_LIST.each { |phase| tmp_data["[#{phase}]#{type}"] = 0 }
   end
   instances.each do |instance|
     if /\w+-\w+-(?<phase>\w+)-.+/ =~ instance['Tags'].find {|tag| tag['Key'].downcase == 'name' }['Value']
-      data["[#{phase}]#{instance['InstanceType']}"] += 1
+      tmp_data["[#{phase}]#{instance['InstanceType']}"] += 1
     end
   end
+  tmp_data.each { |k, v| data[k] = v if v > 0 }
 end.save('instance_count_per_phase_and_type.csv')

@@ -30,9 +30,10 @@ STACK_STATUS = {
 
 counter = Aws::Counter.new
 counter.cli("aws cloudformation list-stacks --stack-status-filter #{STACK_STATUS.keys.join(' ')}").map(:per_phase) do |result, data|
+  data['dev'] = 0
   result['StackSummaries'].each do |stack|
-    if /\w+-\w+-(?<phase>\w+)-.+/ =~ stack['StackName']
-      data[phase] += 1
+    if m = Regexp.new("#{SECTION}+-#{SERVICE_ID}+-(?<phase>\\w+)-.+").match(stack['StackName'])
+      data[m[:phase]] += 1
     end
   end
   data['total'] = data.values.inject { |a, e| a + e }
@@ -41,7 +42,7 @@ end.save('stack_count.csv')
 counter.map do |result, data|
   STACK_STATUS.keys.each { |status| data[status] = 0 }
   result['StackSummaries'].each do |stack|
-    if /\w+-\w+-(?<phase>\w+)-.+/ =~ stack['StackName']
+    if m = Regexp.new("#{SECTION}+-#{SERVICE_ID}+-(?<phase>\\w+)-.+").match(stack['StackName'])
       if STACK_STATUS.keys.include?(stack['StackStatus'])
         data[stack['StackStatus']] += 1
       else
@@ -52,15 +53,18 @@ counter.map do |result, data|
 end.save('stack_count_per_status.csv')
 
 counter.map do |result, data|
-  STACK_STATUS.values.each do |status|
-    Aws::Counter::PHASE_LIST.each { |phase| data["[#{phase}]#{status}"] = 0 }
+  phase_list = Aws::Counter::PHASE_LIST.dup.push('dev')
+  phase_list.each do |phase|
+    STACK_STATUS.values.each do |status|
+      data["[#{phase}]#{status}"] = 0
+    end
   end
   result['StackSummaries'].each do |stack|
-    if /\w+-\w+-(?<phase>\w+)-.+/ =~ stack['StackName']
+    if m = Regexp.new("#{SECTION}+-#{SERVICE_ID}+-(?<phase>\\w+)-.+").match(stack['StackName'])
       if STACK_STATUS.keys.include?(stack['StackStatus'])
-        data["[#{phase}]#{STACK_STATUS[stack['StackStatus']]}"] += 1
+        data["[#{m[:phase]}]#{STACK_STATUS[stack['StackStatus']]}"] += 1
       else
-        data["[#{phase}]UNKNOWN"] += 1
+        data["[#{m[:phase]}]UNKNOWN"] += 1
       end
     end
   end
