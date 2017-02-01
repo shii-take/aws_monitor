@@ -5,7 +5,7 @@ require 'csv'
 
 module Aws
   class Counter
-    PHASE_LIST = %w(ci tr1 tr2 ts1 ts2 ts1 ts2 dem prv rh rel sdb prd)
+    PHASE_LIST = %w(ci dev prd)
     REGION = 'ap-northeast-1'
 
     def initialize
